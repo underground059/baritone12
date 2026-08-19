@@ -27,6 +27,7 @@ import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.HashMap;
@@ -95,6 +96,49 @@ public class ToolSet {
 
     public boolean hasSilkTouch(ItemStack stack) {
         return EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, stack) > 0;
+    }
+
+    /**
+     * Find the best pickaxe with Silk Touch in the hotbar
+     * @return the slot index of the best silk touch pickaxe, or -1 if none found
+     */
+    public int getBestSilkTouchPickaxeSlot() {
+        int bestSlot = -1;
+        int bestLevel = -1;
+        int bestTier = -1;
+        
+        for (int i = 0; i < 9; i++) {
+            ItemStack itemStack = player.getInventory().getItem(i);
+            
+            // Check if it's a pickaxe
+            if (!itemStack.isCorrectToolForDrops(Blocks.SPAWNER.defaultBlockState())) {
+                continue;
+            }
+            
+            // Check if it has Silk Touch
+            if (!hasSilkTouch(itemStack)) {
+                continue;
+            }
+            
+            if (Baritone.settings().itemSaver.value && 
+                (itemStack.getDamageValue() + Baritone.settings().itemSaverThreshold.value) >= itemStack.getMaxDamage() && 
+                itemStack.getMaxDamage() > 1) {
+                continue;
+            }
+            
+            int silkTouchLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, itemStack);
+            int tier = getMaterialCost(itemStack);
+            
+            // Prefer higher Silk Touch level, then higher tier
+            if (silkTouchLevel > bestLevel || 
+                (silkTouchLevel == bestLevel && tier > bestTier)) {
+                bestLevel = silkTouchLevel;
+                bestTier = tier;
+                bestSlot = i;
+            }
+        }
+        
+        return bestSlot;
     }
 
     /**

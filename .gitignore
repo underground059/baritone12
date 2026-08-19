@@ -1,5 +1,3 @@
 ```
-# Logs and temp files
-*.log
-hs_err_pid*.log
+.gradle/
 ```

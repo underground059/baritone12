@@ -61,6 +61,8 @@ public final class MineProcess extends BaritoneProcessHelper implements IMinePro
     private GoalRunAway branchPointRunaway;
     private int desiredQuantity;
     private int tickCount;
+    private boolean miningSpawner;
+    private int previousSlot = -1;
 
     public MineProcess(Baritone baritone) {
         super(baritone);
@@ -127,7 +129,28 @@ public final class MineProcess extends BaritoneProcessHelper implements IMinePro
                 Optional<Rotation> rot = RotationUtils.reachable(ctx, pos);
                 if (rot.isPresent() && isSafeToCancel) {
                     baritone.getLookBehavior().updateTarget(rot.get(), true);
-                    MovementHelper.switchToBestToolFor(ctx, ctx.world().getBlockState(pos));
+                    
+                    // Check if we're mining a spawner and have a silk touch pickaxe
+                    miningSpawner = state.getBlock() == Blocks.SPAWNER;
+                    if (miningSpawner) {
+                        ToolSet toolSet = new ToolSet(ctx.player());
+                        int silkTouchSlot = toolSet.getBestSilkTouchPickaxeSlot();
+                        if (silkTouchSlot != -1) {
+                            // Save current slot and switch to silk touch pickaxe
+                            if (previousSlot == -1) {
+                                previousSlot = ctx.player().getInventory().selected;
+                            }
+                            ctx.player().getInventory().selected = silkTouchSlot;
+                        }
+                    } else {
+                        // Restore previous slot if we were mining a spawner
+                        if (previousSlot != -1) {
+                            ctx.player().getInventory().selected = previousSlot;
+                            previousSlot = -1;
+                        }
+                        MovementHelper.switchToBestToolFor(ctx, state);
+                    }
+                    
                     if (ctx.isLookingAt(pos) || ctx.playerRotations().isReallyCloseTo(rot.get())) {
                         baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, true);
                     }
@@ -165,6 +188,11 @@ public final class MineProcess extends BaritoneProcessHelper implements IMinePro
 
     @Override
     public void onLostControl() {
+        // Restore previous slot if we were mining a spawner
+        if (previousSlot != -1 && ctx != null && ctx.player() != null) {
+            ctx.player().getInventory().selected = previousSlot;
+            previousSlot = -1;
+        }
         mine(0, (BlockOptionalMetaLookup) null);
     }
 
